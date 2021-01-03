@@ -1,8 +1,9 @@
 /*
-MIDU_TOKEN 为 "https://apiwz.midukanshu.com/user/readTimeBase/readTime"此链接请求头内的token;
+MIDU_TOKEN 为 "https://apiwz.midukanshu.com/user/readTimeBase/readTime"此链接完整请求头;
 MIDU_TIME  为 "https://apiwz.midukanshu.com/user/readTimeBase/readTime"此链接请求体，格式为 "dataEncStr=XXX;
-MIDU_SIGN 为 "https://apiwz.midukanshu.com/wz/task/" 请求体，格式为 "fullVersion=XXX"
-以上全部值不许换行，多账号用#分隔
+MIDU_SIGN 为 "https://apiwz.midukanshu.com/wz/task/" 完整请求体，格式为 "fullVersion=XXX"
+以上全部值不许换行，多账号用#分隔;
+多账号退出一账号可能某些任务会提示失效
 由于运行时间较长，则只在Actions运行
 */
 const cookieName = '米读阅读时长'
@@ -54,21 +55,23 @@ if ($.isNode()) {
   }
   if ($.isNode()){
       console.log(`============ 脚本执行-国际标准时间(UTC)：${new Date().toLocaleString()}  =============\n`)
-      console.log(`============ 脚本执行-北京时间(UTC+8)：${new Date(new Date().getTime() + 8 * 60 * 60 * 1000).toLocaleString()}=============\n`)
+      console.log(`============ 脚本执行-北京时间(UTC+8)：${new Date(new Date().getTime() + 8 * 60 * 60 * 1000).toLocaleString()}  =============\n`)
       console.log(`============ 共${tokenArr.length}个米读账号  =============\n`)
      };
+
   for (let i = 0; i < tokenArr.length; i++) {
     if (tokenArr[i]) {
-      tokenVal = tokenArr[i];
+      headerVal = tokenArr[i];
       bodyVal = TimeArr[i];
       drawVal = SignArr[i];
       $.index = i + 1;
+      //console.log(tokenArr)
       console.log(`-------------------------\n\n开始【米读账号${$.index}】`)
      tkVal = drawVal.match(/tk=(\w+)/)[1]
-      //console.log(TimeArr)
-   for (i=0;i<10;i++){
+      await userInfo();
+    for (j=0;j<10;j++){
       await readTime()
-     };   
+     }; 
       await prizeInfo();
      if (prizeinfo && prizeinfo.data && prizeinfo.data.total_num) {
           await prizeTask(),
@@ -77,9 +80,9 @@ if ($.isNode()) {
       await addDraw();
       await taskTime();
       await OthersAd();
+      await dice_addnum();
       await dice_roll();
       await dice_double();
-      await userInfo();
      if (bind) {
           await Bind();
       }
@@ -96,22 +99,14 @@ if ($.isNode()) {
 // 阅读时长
 function readTime() {
   return new Promise((resolve, reject) => {
-   setTimeout(()=> {
     let request = {
     url: "https://apiwz.midukanshu.com/user/readTimeBase/readTime",
-            headers: {
-                'host': 'apiwz.midukanshu.com',
-                'versionName': '1.24.0.0918.1649',
-                "User-Agent": "MRSpeedNovel/0918.1649 CFNetwork/1128.0.1 Darwin/19.6.0",
-                "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
-                'token': tokenVal,
-                'tk': tkVal
-        },
+        headers: JSON.parse(headerVal),
         body: bodyVal
     }
-        $.post(request, (error, response, data) => {
+        $.post(request, async(error, response, data) => {
             try {
-                $.log(`❕ ${cookieName} readTime - response: ${JSON.stringify(response)}\n`)
+                //$.log(`❕ ${cookieName} readTime - response: ${JSON.stringify(data)}\n`)
                 readtime = JSON.parse(data)
                 let subTitle = ''
                 let detail = ''
@@ -120,35 +115,24 @@ function readTime() {
                     const readTotalMinute = readtime.data.readTotalMinute
                     const total_coin = readtime.data.total_coin
                     coin == 0 ? detail += `` : detail += `【阅读时长】获得${coin}💰`
-                     console.log("总计金币:"+total_coin+" 现金收益"+readtime.data.popup.corner)
-                    if (readTotalMinute) {
-      console.log("总计阅读时长"+readTotalMinute / 2+"分钟，本次获得+"+`${coin}金币\n`)
+                     console.log("总计阅读时长"+readTotalMinute / 2+"分钟，本次获得+"+`${coin}金币，请等待30s后执行下一次阅读\n`)
                         readTotalMinute ? detail += ` 阅读时长${readTotalMinute / 2}分钟,该账户:${total_coin}💰` : detail += `该账户:${total_coin}💰`
+                        await $.wait(30000);
                   
                         //$.msg(cookieName, subTitle, detail)
-                    } else if ($.getdata('debug') == 'true') {
-                        readTotalMinute ? detail += ` 阅读时长${readTotalMinute / 2}分钟,该账户:${total_coin}💰` : detail += `该账户:${total_coin}💰`
-                       // $.msg(cookieName, subTitle, detail)
                         
-                        
-                    }
                 } else if (readTime.code != 0) {
                     detail += `【阅读时长】错误代码${readtime.code},错误信息${readtime.message}`
                     $.msg(cookieName, subTitle, detail)
-                } else {
-                    detail += '【阅读时长】失败'
-                    $.msg(cookieName, subTitle, detail)
-                }
+                } 
 
-                resolve()
             } catch (e) {
                 $.msg(cookieName, `阅读时长: 失败`, `说明: ${e}`)
                 $.log(`❌ ${cookieName} readTime - 签到失败: ${e}`)
-                $.log(`❌ ${cookieName} readTime - response: ${JSON.stringify(response)}\n`)
-                resolve()
+                $.log(`❌ ${cookieName} readTime - response: ${JSON.stringify(data)}\n`)
             }
+            resolve()
          })
-      },30000)
     })
 }
 
@@ -156,49 +140,51 @@ function drawPrize() {
     return new Promise((resolve, reject) => {
         const url = {
             url: 'https://apiwz.midukanshu.com/wz/task/drawPrize?' + drawVal,
-            headers: {},
+            headers: JSON.parse(headerVal),
         }
-        url.headers['token'] = tokenVal
-        url.headers['Host'] = 'apiwz.midukanshu.com'
-        url.headers['Content-Type'] = 'application/x-www-form-urlencoded'
-        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 qapp miduapp'
-         url.headers['tk'] = tkVal
         $.post(url, (error, response, data) => {
             try {
-                $.log(`🐍🐢 ${cookieName} drawPrize - response: ${JSON.stringify(response)}\n`)
-                if (data) {
-                    drawprize = JSON.parse(data)
-                }
-                resolve()
+                $.log(`🐍🐢 ${cookieName} drawPrize - response: ${JSON.stringify(data)}\n`)
+                  drawprize = JSON.parse(data)
+                  if(drawprize.code==0){
+                  console.log("转盘抽奖任务："+drawprize.data.title)
+                  }
+              
             } catch (e) {
                 // $.msg(cookieName, `抽奖: 失败`, `说明: ${e}`)
                 $.log(`❌ ${cookieName} drawPrize - 抽奖失败: ${e}`)
-                $.log(`❌ ${cookieName} drawPrize - response: ${JSON.stringify(response)}\n`)
-                resolve()
+                $.log(`❌ ${cookieName} drawPrize - response: ${JSON.stringify(data)}\n`)
+
             }
+            resolve()
         })
     })
 }
 // 用户信息
 function userInfo() {
     return new Promise((resolve, reject) => {
-        const userInfourlVal = 'https://apiwz.midukanshu.com/wz/user/getInfo?' + bodyVal
         const url = {
-            url: userInfourlVal,
-            headers: {}
+            url: 'https://apiwz.midukanshu.com/wz/user/getInfo',
+            headers: JSON.parse(headerVal),
+            body: bodyVal
         }
-        url.headers['Host'] = 'apiwz.midukanshu.com'
-        url.headers['Content-Type'] = 'application/x-www-form-urlencoded'
-        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 12_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
         $.post(url, (error, response, data) => {
             try {
-               // $.log(`🐍🐢 ${cookieName} userInfo - response: ${JSON.stringify(response)}`)
-                userInfo = JSON.parse(data)
+                //$.log(`🐍🐢 ${cookieName} userInfo - response: ${JSON.stringify(data)}`)
+                userinfo = JSON.parse(data)
+                if (userinfo.code==0){
+                nick = userinfo.data.nickname
+                total_coin = userinfo.data.goldCoin
+                corner = userinfo.data.goldCoinMoney
+                invite_code = userinfo.data.invite_code
+                today_coin = userinfo.data.todayGoldCoin
+                console.log("总计金币:"+total_coin+" 现金收益"+corner+'\n您今日所得总金币为'+ today_coin+'  您的邀请码为'+ invite_code+'\n')
+                }
                 resolve()
             } catch (e) {
                 $.msg(cookieName, `获取用户信息: 失败`, `说明: ${e}`)
                 $.log(`❌ ${cookieName} userInfo - 获取用户信息失败: ${e}`)
-                $.log(`❌ ${cookieName} userInfo - response: ${JSON.stringify(response)}`)
+                $.log(`❌ ${cookieName} userInfo - data: ${JSON.stringify(data)}`)
                 resolve()
             }
         })
@@ -209,12 +195,10 @@ function Bind() {
     return new Promise((resolve, reject) => {
         const url = {
             url: 'http://fisson.1sapp.com/nlx/shareLink/tmpBind',
-            headers: {},
-            body: 'app_id=7&act_type=1&act_name=grad_pupil&invite_code=A1051999596&telephone=' + userInfo.data.mobile
+            headers: JSON.parse(headerVal),
+            body: 'app_id=7&act_type=1&act_name=grad_pupil&invite_code=A1051999596&telephone=' + userinfo.data.mobile
         }
         url.headers['Host'] = 'fisson.1sapp.com'
-        url.headers['Content-Type'] = 'application/x-www-form-urlencoded'
-        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 12_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
         $.post(url, (error, response, data) => {
            resolve()
         })
@@ -228,22 +212,23 @@ function addDraw() {
          url = {
             url: 'https://apiwz.midukanshu.com/wz/task/weekReward',
             headers: {},
-            body:  drawVal
+            body:  drawVal+"&draw_num=28&sign=36646430333630313c3c353c6661326136333266326036353663333232363d3d"
         }
         url.headers['Host'] = 'apiwz.midukanshu.com'
         url.headers['Content-Type'] = 'application/x-www-form-urlencoded'
-        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 qapp miduapp'
+        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 qapp miduapp'
         $.post(url, (error, response, data) => {
             try {
-                $.log(`🐍🐢 ${cookieName} drawPrize - response: ${JSON.stringify(response)}\n`)
-                if (data) {
+               // $.log(`🐍🐢 ${cookieName} addDraw - response: ${JSON.stringify(data)}\n`)
                     add_Draw = JSON.parse(data)
-                }
+                if(add_Draw.code==0){
+                  console.log("转盘额外奖励："+add_Draw.data.msg)
+                  }
                 resolve()
             } catch (e) {
                 // $.msg(cookieName, `额外奖励: 失败`, `说明: ${e}`)
-                $.log(`❌ ${cookieName} addDraw - 额外奖励失败: ${e}`)
-                $.log(`❌ ${cookieName} addDraw - response: ${JSON.stringify(response)}\n`)
+                $.log(`❌ ${cookieName} addDraw - 转盘额外奖励失败: ${e}`)
+                $.log(`❌ ${cookieName} addDraw - response: ${JSON.stringify(data)}\n`)
                 resolve()
             }
         })
@@ -259,24 +244,23 @@ function taskTime() {
         }
         url.headers['Host'] = 'apiwz.midukanshu.com'
         url.headers['Content-Type'] = 'application/x-www-form-urlencoded'
-        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 qapp miduapp'
+        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 qapp miduapp'
         $.post(url, (error, response, data) => {
             try {
-                $.log(`🐍🐢 ${cookieName} taskTime - response: ${JSON.stringify(response)}\n`)
-                if (data) {
-                    drawprize = JSON.parse(data)
-                }
+               // $.log(`🐍🐢 ${cookieName} taskTime - response: ${JSON.stringify(data)}\n`)
+                    _taskTime = JSON.parse(data)
+                if(_taskTime.code==0){
+                  console.log("定时任务："+"+"+_taskTime.data.amount)
+                  }
                 resolve()
             } catch (e) {
-                $.log(`❌ ${cookieName} taskTime - 抽奖失败: ${e}`)
-                $.log(`❌ ${cookieName} taskTime - response: ${JSON.stringify(response)}\n`)
+                $.log(`❌ ${cookieName} taskTime - 定时任务失败: ${e}`)
+                $.log(`❌ ${cookieName} taskTime - response: ${JSON.stringify(data)}\n`)
                 resolve()
             }
         })
     })
 }
-
-
 
 
 // 观看视频获取抽奖机会
@@ -287,21 +271,22 @@ function prizeTask() {
             url: prizeTaskurlVal,
             headers: {},
        }
-        url.headers['token'] = tokenVal
+        //url.headers['token'] = tokenVal
         url.headers['Host'] = 'apiwz.midukanshu.com'
         url.headers['Content-Type'] = 'application/x-www-form-urlencoded'
-        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 12_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
+        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 qapp miduapp'
         $.post(url, (error, response, data) => {
             try {
-                $.log(`🐍🐢 ${cookieName} prizeTask - response: ${JSON.stringify(response)}\n`)
-                if (data) {
-                    prizetask = JSON.parse(data)
-                }
+               // $.log(`🐍🐢 ${cookieName} prizeTask - response: ${JSON.stringify(data)}\n`)
+                prizetask = JSON.parse(data)
+              if(prizetask.code==0){
+                  console.log("抽奖次数： "+prizetask.data.title)
+                  }
                 resolve()
             } catch (e) {
                 // $.msg(cookieName, `观看视频抽奖: 失败`, `说明: ${e}`)
                 $.log(`❌ ${cookieName} prizeTask - 观看视频抽奖失败: ${e}`)
-                $.log(`❌ ${cookieName} prizeTask - response: ${JSON.stringify(response)}\n`)
+                $.log(`❌ ${cookieName} prizeTask - response: ${JSON.stringify(data)}\n`)
                 resolve()
             }
         })
@@ -311,27 +296,26 @@ function prizeTask() {
 // 抽奖信息
 function prizeInfo() {
     return new Promise((resolve, reject) => {
-        const prizeInfourlVal = 'https://apiwz.midukanshu.com/wz/task/prizeList'
         const url = {
-            url: prizeInfourlVal,
+            url: 'https://apiwz.midukanshu.com/wz/task/prizeList',
             headers: {},
             body: drawVal
         }
-        url.headers['token'] = tokenVal
         url.headers['Host'] = 'apiwz.midukanshu.com'
         url.headers['Content-Type'] = 'application/x-www-form-urlencoded'
-        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 12_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
+        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 qapp miduapp'
         $.post(url, (error, response, data) => {
             try {
-                // $.log(`🐍🐢 ${cookieName} prizeInfo - response: ${JSON.stringify(response)}\n`)
+                 //$.log(`🐍🐢 ${cookieName} prizeInfo - response: ${JSON.stringify(data)}\n`)
                 if (data) {
                     prizeinfo = JSON.parse(data)
+                    console.log("今日抽奖信息:"+prizeinfo.data.btnText)
                 }
                 resolve()
             } catch (e) {
                 // $.msg(cookieName, `抽奖信息: 失败`, `说明: ${e}`)
                 $.log(`❌ ${cookieName} prizeInfo - 抽奖信息失败: ${e}`)
-                $.log(`❌ ${cookieName} prizeInfo - response: ${JSON.stringify(response)}\n`)
+                $.log(`❌ ${cookieName} prizeInfo - response: ${JSON.stringify(data)}\n`)
                 resolve()
             }
         })
@@ -341,26 +325,28 @@ function prizeInfo() {
 // 掷骰子
 function dice_roll() {
     return new Promise((resolve, reject) => {
-        const dice_roll_urlVal = 'https://apiwz.midukanshu.com/wz/dice/roll'
         const url = {
-            url: dice_roll_urlVal,
+            url: 'https://apiwz.midukanshu.com/wz/dice/roll',
             headers: {},
             body: drawVal
         }
         url.headers['Host'] = 'apiwz.midukanshu.com'
         url.headers['Content-Type'] = 'application/x-www-form-urlencoded'
-        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 12_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
+        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
         $.post(url, (error, response, data) => {
             try {
-                $.log(`🐍🐢 ${cookieName} dice_roll - response: ${JSON.stringify(response)}\n`)
-                if (JSON.parse(data).code == 0) {
-                    rollList=JSON.parse(data)
+               // $.log(`🐍🐢 ${cookieName} dice_roll - response: ${JSON.stringify(data)}\n`)
+                rollList=JSON.parse(data)
+                if (rollList.code == 0) {
+                  console.log("掷骰子获得"+rollList.data.roll_coin+"金币")
+                } else if (rollList.code == '-10203'){
+                  console.log("掷骰子任务："+rollList.message)
                 }
                 resolve()
             } catch (e) {
                 $.msg(cookieName, `掷骰子: 失败`, `说明: ${e}`)
                 $.log(`❌ ${cookieName} dice_roll - 掷骰子失败: ${e}`)
-                $.log(`❌ ${cookieName} dice_roll - response: ${JSON.stringify(response)}\n`)
+                $.log(`❌ ${cookieName} dice_roll - response: ${JSON.stringify(data)}\n`)
                 resolve()
             }
         })
@@ -370,32 +356,63 @@ function dice_roll() {
 // 骰子双倍奖励
 function dice_double() {
     return new Promise((resolve, reject) => {
-        const dice_double_urlVal = 'https://apiwz.midukanshu.com/wz/dice/doubleReward'
         const url = {
-            url: dice_double_urlVal,
+            url: 'https://apiwz.midukanshu.com/wz/dice/doubleReward',
             headers: {},
             body: drawVal
         }
         url.headers['Host'] = 'apiwz.midukanshu.com'
         url.headers['Content-Type'] = 'application/x-www-form-urlencoded'
-        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 12_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
-        url.headers['token'] = tokenVal
+        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 qapp miduapp'
+        //url.headers['token'] = tokenVal
         $.post(url, (error, response, data) => {
             try {
-                $.log(`🐍🐢 ${cookieName} dice_double - response: ${JSON.stringify(response)}\n`)
-                if (JSON.parse(data).code == 0) {
-                    doubleList=JSON.parse(data)
+                $.log(`🐍🐢 ${cookieName} dice_double - response: ${JSON.stringify(data)}\n`)
+                doubleList=JSON.parse(data)
+                if (doubleList.code == 0) {
+                console.log("骰子双倍奖励:"+doubleList.message)
+                } else if (doubleList.code == '-10205'){
+                console.log("骰子双倍奖励:"+doubleList.message)
                 }
                 resolve()
             } catch (e) {
                 $.msg(cookieName, `骰子双倍奖励: 失败`, `说明: ${e}`)
                 $.log(`❌ ${cookieName} dice_double - 骰子双倍奖励失败: ${e}`)
-                $.log(`❌ ${cookieName} dice_double - response: ${JSON.stringify(response)}\n`)
+                $.log(`❌ ${cookieName} dice_double - response: ${JSON.stringify(data)}\n`)
                 resolve()
             }
         })
     })
 }
+//获取骰子次数:
+function dice_addnum() {
+    return new Promise((resolve, reject) => {
+        const dice_addnum_urlVal = 'https://apiwz.midukanshu.com/wz/dice/addChangeNumByRewardVideo?' + drawVal
+        const url = {
+            url: dice_addnum_urlVal,
+            headers: {}
+        }
+        url.headers['Host'] = 'apiwz.midukanshu.com'
+        url.headers['Content-Type'] = 'application/x-www-form-urlencoded'
+        url.headers['User-Agent'] = 'User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 14_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 miduapp qapp'
+        $.post(url, (error, response, data) => {
+            try {
+               // $.log(`🐍🐢 ${cookieName} dice_addnum - response: ${JSON.stringify(data)}`)
+              diceaddnum=JSON.parse(data)
+              if(diceaddnum.code=='-10208'){
+                  console.log("获取骰子次数:"+diceaddnum.message)
+                  }
+                resolve()
+            } catch (e) {
+                $.msg(cookieName, `获取骰子次数: 失败`, `说明: ${e}`)
+                $.log(`❌ ${cookieName} dice_addnum - 获取骰子次数失败: ${e}`)
+                $.log(`❌ ${cookieName} dice_addnum - response: ${JSON.stringify(data)}`)
+                resolve()
+            }
+        })
+    })
+}
+
   
 // 每日签到
 function signDay() {
@@ -404,19 +421,22 @@ function signDay() {
             url: "https://apiwz.midukanshu.com/wz/task/signInV2?"+ drawVal,
             headers: {},
         }
-        url.headers['token'] = tokenVal
+        //url.headers['token'] = tokenVal
         url.headers['Host'] = 'apiwz.midukanshu.com'
         url.headers['Content-Type'] = 'application/x-www-form-urlencoded'
-        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 12_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
+        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 qapp miduapp'
         $.post(url, (error, response, data) => {
             try {
-                $.log(`🐍🐢 ${cookieName} signDay - response: ${JSON.stringify(response)}\n`)
+                //$.log(`🐍🐢 ${cookieName} signDay - response: ${JSON.stringify(data)}\n`)
                 _signDay = JSON.parse(data)
+                if(_signDay.code==0){
+                  console.log("每日签到："+_signDay.data.amount+"金币")
+                  }
                 resolve()
             } catch (e) {
                 $.msg(cookieName, `签到结果: 失败`, `说明: ${e}`)
                 $.log(`❌ ${cookieName} signDay - 签到失败: ${e}`)
-                $.log(`❌ ${cookieName} signDay - response: ${JSON.stringify(response)}\n`)
+                $.log(`❌ ${cookieName} signDay - response: ${JSON.stringify(data)}\n`)
                 resolve()
             }
         })
@@ -425,26 +445,26 @@ function signDay() {
 
 // 签到视频奖励
 function signVideo() {
-    return new Promise((resolve, reject) => {
-        const signVideourlVal = 'https://apiwz.midukanshu.com/wz/task/signVideoReward' 
+    return new Promise((resolve, reject) => { 
         const url = {
-            url: signVideourlVal,
+            url: 'https://apiwz.midukanshu.com/wz/task/signVideoReward',
             headers: {},
             body: drawVal
         }
-        url.headers['Host'] = 'apiwz.midukanshu.com'
-        url.headers['Content-Type'] = 'application/x-www-form-urlencoded'
-        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 12_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
-        url.headers['token'] = tokenVal
         $.post(url, (error, response, data) => {
             try {
-                $.log(`🐍🐢 ${cookieName} signVideo - response: ${JSON.stringify(response)}\n`)
+               // $.log(`🐍🐢 ${cookieName} signVideo - response: ${JSON.stringify(data)}\n`)
                 _signVideo = JSON.parse(data)
+                if (_signVideo.code == 0) {
+                console.log("签到视频奖励得"+_signVideo.data.amount+"金币")
+                } else {
+                console.log(_signVideo.message)
+                }
                 resolve()
             } catch (e) {
                 $.msg(cookieName, `签到视频: 失败`, `说明: ${e}`)
                 $.log(`❌ ${cookieName} signVideo - 签到视频失败: ${e}`)
-                $.log(`❌ ${cookieName} signVideo - response: ${JSON.stringify(response)}\n`)
+                $.log(`❌ ${cookieName} signVideo - response: ${JSON.stringify(data)}\n`)
                 resolve()
             }
         })
@@ -454,25 +474,24 @@ function signVideo() {
 
 function OthersAd() {
     return new Promise((resolve, reject) => {
-        const otherVal = 'https://apiwz.midukanshu.com/activity/dividend/videoAdReward' 
+        const otherVal = 'https://apiwz.midukanshu.com/activity/dividend/videoAdReward'
         const url = {
             url: otherVal,
             headers: {},
             body: drawVal
         }
-        url.headers['Host'] = 'apiwz.midukanshu.com'
-        url.headers['Content-Type'] = 'application/x-www-form-urlencoded'
-        url.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 12_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
-        url.headers['token'] = tokenVal
         $.post(url, (error, response, data) => {
             try {
-                $.log(`🐍🐢 ${cookieName} OthersAd - response: ${JSON.stringify(response)}\n`)
-                _signVideo = JSON.parse(data)
+               // $.log(`🐍🐢 ${cookieName} OthersAd - response: ${JSON.stringify(data)}\n`)
+                _OthersAd = JSON.parse(data)
+                if(_OthersAd.code==0){
+                console.log("额外奖励： "+_OthersAd.data.msg)
+                }
                 resolve()
             } catch (e) {
                 $.msg(cookieName, `额外奖励: 失败`, `说明: ${e}`)
                 $.log(`❌ ${cookieName} OthersAd - 额外奖励失败: ${e}`)
-                $.log(`❌ ${cookieName} OthersAd - response: ${JSON.stringify(response)}\n`)
+                $.log(`❌ ${cookieName} OthersAd - response: ${JSON.stringify(data)}\n`)
                 resolve()
             }
         })

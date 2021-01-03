@@ -1,6 +1,6 @@
 
 /*
-更新时间: 2020-10-18 00:50
+更新时间: 2021-1-1 00:50
 
 腾讯新闻签到修改版，可以自动阅读文章获取红包，该活动为瓜分百万现金挑战赛，针对幸运用户参与
 
@@ -52,8 +52,8 @@ let notifyInterval =$.getdata('notifynum')||50; //阅读篇数间隔通知开为
 const TX_HOST = 'https://api.inews.qq.com/activity/v1/'
 let SignArr = [],SignUrl = "";
     cookiesArr = [],CookieTxnews = "";
-    VideoArr = [],SignUrl = "",order = "";
-    
+    VideoArr = [],SignUrl = "",order = "",
+    detail = ``, subTitle = ``;
 
 if ($.isNode()) {
   if (process.env.TXNEWS_COOKIE && process.env.TXNEWS_COOKIE.indexOf('&') > -1) {
@@ -119,24 +119,22 @@ if (isGetCookie) {
       await getsign();
       await activity();
       await toRead();
+      await $.wait(3000)
       await lookVideo();
-      await OrderID();
-      if(order) {
-      await Pending();
-    };
+      await redrain();
       await StepsTotal();
-      if(getreadred > 0){
+      if(getreadred != 0){
         redbody = `redpack_type=article&activity_id=${actid}`
         await Redpack()
       };
-      if(getvideored>0){
+      if(getvideored != 0){
         redbody = `redpack_type=video&activity_id=${actid}`
         await Redpack()
       };
       await getTotal();
       await showmsg();
     if ($.isNode()){
-       if (readnum%notifyInterval==0&&Total_Earn.data.wealth[1].title > 2){
+       if (readnum%notifyInterval==0&&cashtotal > 2){
      await notify.sendNotify($.name,subTile+'\n'+detail)
        }
      }
@@ -242,6 +240,22 @@ function lookVideo() {
     },s*2)
   })
 }
+function redrain() {
+  return new Promise((resolve, reject) => {
+      $.post({url: `https://api.prize.qq.com/v1/newsapp/fireworks/fw_202012/outer_get/KIJ1Q0FD57W0`, headers: {Cookie:cookieVal,"Referer": "https://gh.prize.qq.com/h5/fireworks/send.html?_addparams=%7B%22id%22%3A%22KIJ1Q0FD57W0%22%7D"}},(error, resp, data) =>{
+         //console.log(data)
+    if(resp.statusCode !== 403){
+      try {
+          let openres = JSON.parse(data)
+            if (openres.message == "success" ){
+            }
+           } catch(error){
+             console.log("分享失败:"+ data)      }
+         }
+        resolve()
+      })
+   })
+}
 
 function OrderID() {
   return new Promise((resolve, reject) => {
@@ -328,13 +342,16 @@ function Redpack() {
   return new Promise((resolve, reject) => {
     setTimeout(()=>{
       const cashUrl = {
-        url: `${TX_HOST}activity/redpack/get?isJailbreak=0&${ID}`,
-        headers: {Cookie: cookieVal},
+        url: `${TX_HOST}activity/redpack/get?isJailbreak=0&mac=${token}`,
+        headers: {Cookie:cookieVal,"Content-Type": "application/x-www-form-urlencoded","User-Agent": "QQNews/6.3.40 (iPhone; iOS 14.2; Scale/3.00)"},
         body: redbody
       }
+
       $.post(cashUrl, (error, response, data) => {
         let rcash = JSON.parse(data)
+        console.log(data)
         try{
+          if(rcash.data.award.length == 1){
           redpacks = rcash.data.award.num/100
           if (rcash.ret == 0&&redpacks>0&&getreadred > 0){
             redpackres = `【阅读红包】到账`+redpacks+`元 🌷\n`
@@ -344,6 +361,9 @@ function Redpack() {
             redpackres = `【视频红包】到账`+redpacks+`元 🌷\n`
             $.log("视频红包到账"+redpacks+"元\n")
           }
+         } else {
+            $.log(rcash.data.award.length+"个红包到账\n")
+         }
         }
         catch(error){
           console.log("打开红包失败,响应数据: "+ data) 
@@ -366,7 +386,8 @@ function getTotal() {
         $.msg("获取收益信息失败‼️", "", error)
       } else {
         const Total_Earn = JSON.parse(data)
-        subTile = '【收益总计】'+Total_Earn.data.wealth[0].title +'金币  '+"钱包: " +Total_Earn.data.wealth[1].title+'元'
+        cashtotal =Total_Earn.data.wealth[1].title
+        subTile = '【收益总计】'+ Total_Earn.data.wealth[0].title +'金币  '+"钱包: " + cashtotal+'元'
      // $.log("钱包收益共计"+obj.data.wealth[1].title+"元")
       }
       resolve()

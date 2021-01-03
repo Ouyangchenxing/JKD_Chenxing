@@ -8,10 +8,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Sunert/Scripts.git"
+    "url": "https://github.com/Sunert/Scripts.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["中青看点,腾讯新闻等等"],
+  "author": "Sunert",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/Sunert/Scripts/issues"
@@ -19,12 +19,9 @@
   "homepage": "https://github.com/Sunert/Scripts#readme",
   "dependencies": {
     "crypto-js": "^4.0.0",
-    "got": "^11.5.1",
+    "got": "^11.7.0",
     "http-server": "^0.12.3",
-    "node-schedule": "^1.3.2",
     "tough-cookie": "^4.0.0",
-    "download": "^8.0.0",
-    "request": "^2.88.2",
-    "request-promise": "^4.2.5"
+    "download": "^8.0.0"
   }
 }

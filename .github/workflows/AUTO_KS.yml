@@ -1,20 +1,20 @@
-# This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
+# 快手视频刷金币测试，抓包获取secrets
 
-name: 米读
+name: 快手视频浏览
 
 on:
   workflow_dispatch:
   schedule:
-     - cron: '*/15 1-14 * * *'
-
+     - cron: '*/30 2,8,16 * * *'
+  watch:
+    types: started
 jobs:
   build:
     runs-on: ubuntu-latest
+    if: github.event.repository.owner.id == github.event.sender.id
     env:
-        MIDU_TOKEN: ${{ secrets.MIDU_TOKEN }}
-        MIDU_TIME: ${{ secrets.MIDU_TIME }}
-        MIDU_SIGN: ${{ secrets.MIDU_SIGN }}
+        KUAISHOUMV: ${{ secrets.KUAISHOUMV }}
+        TZ: Asia/shanghai
     steps:
       - name: Checkout
         run: |
@@ -27,17 +27,16 @@ jobs:
         run: |
           cd ~/Scripts
           npm install
-      - name: '运行 【米读自动阅读】'
-        if: env.MIDU_TOKEN
+      - name: '运行 【快手视频】'
+        if: env.KUAISHOUMV
         run: |
           cd ~/Scripts
-          node Task/midu_Read.js
+          node Task/Auto_Kuaishou.js
         env:
           PUSH_KEY: ${{ secrets.PUSH_KEY }}
           BARK_PUSH: ${{ secrets.BARK_PUSH }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_USER_ID: ${{ secrets.TG_USER_ID }}
           BARK_SOUND: ${{ secrets.BARK_SOUND }}
-
-
-    
+          DD_BOT_TOKEN: ${{ secrets.DD_BOT_TOKEN }}
+          DD_BOT_SECRET: ${{ secrets.DD_BOT_SECRET }}
